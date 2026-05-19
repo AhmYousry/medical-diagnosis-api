@@ -4,7 +4,7 @@ services:
   frontend:
     # On VPS: image is pulled from GHCR (pre-built by CI).
     # For local builds: comment image line and uncomment build block.
-    image: ${UI_IMAGE:-ghcr.io/your-org/medical-diagnosis-ui:latest}
+    image: ${UI_IMAGE:-ghcr.io/ahmyousry/medical-diagnosis-ui:latest}
     # build:
     #   context: ../medical-diagnosis-ui
     #   dockerfile: Dockerfile
@@ -29,7 +29,7 @@ services:
 
   # ── API ──────────────────────────────────────────────────────────
   api:
-    image: ${API_IMAGE:-ghcr.io/your-org/medical-diagnosis-api:latest}
+    image: ${API_IMAGE:-ghcr.io/ahmyousry/medical-diagnosis-api:latest}
     # build:
     #   context: .
     #   dockerfile: Dockerfile
@@ -61,7 +61,7 @@ services:
 
   # ── Celery worker ────────────────────────────────────────────────
   celery-worker:
-    image: ${API_IMAGE:-ghcr.io/your-org/medical-diagnosis-api:latest}
+    image: ${API_IMAGE:-ghcr.io/ahmyousry/medical-diagnosis-api:latest}
     env_file: .env
     environment:
       ENVIRONMENT: production
