@@ -1,0 +1,170 @@
+services:
+
+  # ── Frontend ─────────────────────────────────────────────────────
+  frontend:
+    # On VPS: image is pulled from GHCR (pre-built by CI).
+    # For local builds: comment image line and uncomment build block.
+    image: ${UI_IMAGE:-ghcr.io/your-org/medical-diagnosis-ui:latest}
+    # build:
+    #   context: ../medical-diagnosis-ui
+    #   dockerfile: Dockerfile
+    #   args:
+    #     VITE_API_URL: ${PUBLIC_URL:-http://localhost}
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+  # ── API ──────────────────────────────────────────────────────────
+  api:
+    image: ${API_IMAGE:-ghcr.io/your-org/medical-diagnosis-api:latest}
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      ENVIRONMENT: production
+      APP_DEBUG: "false"
+      JSON_LOGS: "true"
+      LOG_LEVEL: WARNING
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+      - app_logs:/app/logs
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # ── Celery worker ────────────────────────────────────────────────
+  celery-worker:
+    image: ${API_IMAGE:-ghcr.io/your-org/medical-diagnosis-api:latest}
+    env_file: .env
+    environment:
+      ENVIRONMENT: production
+      APP_DEBUG: "false"
+      JSON_LOGS: "true"
+      LOG_LEVEL: WARNING
+    # override entrypoint — celery doesn't need migrations
+    entrypoint: []
+    command: ["celery", "-A", "app.core.celery_app", "worker", "--loglevel=info", "-Q", "predictions", "--concurrency=2"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+      - app_logs:/app/logs
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ── AI Model ─────────────────────────────────────────────────────
+  ai-model:
+    build:
+      context: ../medical-diagnosis-AI-Model
+      dockerfile: Dockerfile
+    volumes:
+      - ../medical-diagnosis-AI-Model/AI:/ai
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  # ── Postgres ─────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-medical_diagnosis}
+      POSTGRES_USER: ${POSTGRES_USER:-medical_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    stop_grace_period: 60s
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medical_user} -d ${POSTGRES_DB:-medical_diagnosis}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ── Redis ────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+  app_logs:

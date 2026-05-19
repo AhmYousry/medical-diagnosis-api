@@ -1,0 +1,21 @@
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+alembic/versions/*.pyc
+
+# runtime
+uploads/
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
