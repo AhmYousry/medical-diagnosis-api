@@ -9,28 +9,35 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision = "20260520_0001"
 down_revision = "00814c2093b5"
 branch_labels = None
 depends_on = None
 
-_email_token_type = sa.Enum(
+# create_type=False tells the PostgreSQL dialect NOT to auto-create/drop the
+# enum type when the table is created/dropped — we manage it manually below.
+_email_token_type = postgresql.ENUM(
     "email_verification",
     "password_reset",
     name="email_token_type",
+    create_type=False,
 )
 
 
 def upgrade() -> None:
-    _email_token_type.create(op.get_bind(), checkfirst=True)
+    # Create enum type manually (plain SQL — no auto-creation side-effects)
+    op.execute(sa.text(
+        "CREATE TYPE email_token_type AS ENUM ('email_verification', 'password_reset')"
+    ))
 
     op.create_table(
         "email_tokens",
-        sa.Column("id", sa.dialects.postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
+        sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("user_id", sa.dialects.postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("token_hash", sa.String(64), nullable=False),
         sa.Column("token_type", _email_token_type, nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
@@ -46,4 +53,4 @@ def downgrade() -> None:
     op.drop_index("ix_email_tokens_user_id_type", table_name="email_tokens")
     op.drop_index("ix_email_tokens_token_hash", table_name="email_tokens")
     op.drop_table("email_tokens")
-    _email_token_type.drop(op.get_bind(), checkfirst=True)
+    op.execute(sa.text("DROP TYPE IF EXISTS email_token_type"))
