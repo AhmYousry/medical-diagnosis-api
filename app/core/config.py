@@ -75,6 +75,32 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30
 
+    # Email (SMTP)
+    smtp_host: str = Field(default="smtp.gmail.com", validation_alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, validation_alias="SMTP_PORT")
+    smtp_username: str = Field(default="", validation_alias="SMTP_USERNAME")
+    smtp_password: str = Field(default="", repr=False, validation_alias="SMTP_PASSWORD")
+    smtp_from_email: str = Field(default="noreply@medscan.ai", validation_alias="SMTP_FROM_EMAIL")
+    smtp_from_name: str = Field(default="MedScan AI", validation_alias="SMTP_FROM_NAME")
+    smtp_tls: bool = Field(default=True, validation_alias="SMTP_TLS")
+    email_verification_expire_hours: int = Field(default=24, validation_alias="EMAIL_VERIFICATION_EXPIRE_HOURS")
+    password_reset_expire_hours: int = Field(default=2, validation_alias="PASSWORD_RESET_EXPIRE_HOURS")
+    frontend_url: str = Field(default="http://localhost:5173", validation_alias="FRONTEND_URL")
+
+    # S3 / Cloudflare R2
+    storage_backend: str = Field(default="local", validation_alias="STORAGE_BACKEND")  # "local" | "s3"
+    s3_bucket_name: str = Field(default="medscan-uploads", validation_alias="S3_BUCKET_NAME")
+    s3_region: str = Field(default="auto", validation_alias="S3_REGION")
+    s3_access_key_id: str = Field(default="", validation_alias="S3_ACCESS_KEY_ID")
+    s3_secret_access_key: str = Field(default="", repr=False, validation_alias="S3_SECRET_ACCESS_KEY")
+    s3_endpoint_url: str | None = Field(default=None, validation_alias="S3_ENDPOINT_URL")  # for Cloudflare R2
+    s3_public_url: str | None = Field(default=None, validation_alias="S3_PUBLIC_URL")
+
+    # Sentry
+    sentry_dsn: str | None = Field(default=None, validation_alias="SENTRY_DSN")
+    sentry_traces_sample_rate: float = Field(default=0.1, validation_alias="SENTRY_TRACES_SAMPLE_RATE")
+    sentry_profiles_sample_rate: float = Field(default=0.1, validation_alias="SENTRY_PROFILES_SAMPLE_RATE")
+
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":
         if self.environment != "local" and self.jwt_secret_key == "change-this-secret-use-at-least-32-characters":

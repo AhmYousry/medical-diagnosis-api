@@ -27,9 +27,12 @@
 | 🧠 **AI Diagnosis** | Deep learning model (CheXNet) analyzes chest X-rays with per-class confidence scoring |
 | 👨‍⚕️ **Doctor Verification** | Role-based system with admin approval workflow for verified doctors |
 | 🔐 **JWT Auth** | Access + refresh token rotation with automatic silent refresh |
+| 📧 **Email Verification** | One-time token flow with branded HTML emails; secure password reset with 2-hour expiry |
 | 📁 **Secure Uploads** | MIME + magic-bytes validation, SHA-256 checksums, configurable size limits |
+| ☁️ **S3/Cloudflare R2 Storage** | Pluggable storage backend — swap local disk for S3-compatible object storage with one env var |
 | 🛡️ **Production-grade Security** | Rate limiting, security headers (HSTS/CSP), CORS, Swagger disabled in prod |
 | 📊 **Admin Dashboard** | Full admin panel — user management, prediction monitoring, doctor approvals |
+| 🔍 **Sentry Monitoring** | Full-stack error tracking (FastAPI + React) with performance tracing and session replay |
 | 🚀 **CI/CD Pipeline** | Tests → Docker build → GHCR push → SSH deploy on every push to `main` |
 
 ---
@@ -166,6 +169,10 @@ Swagger UI available at `/docs` (local environment only).
 | `POST` | `/api/v1/auth/register` | — | Register new user |
 | `POST` | `/api/v1/auth/login` | — | Login → tokens |
 | `POST` | `/api/v1/auth/refresh` | — | Refresh access token |
+| `POST` | `/api/v1/auth/verify-email` | — | Verify email with one-time token |
+| `POST` | `/api/v1/auth/resend-verification` | — | Resend verification email |
+| `POST` | `/api/v1/auth/forgot-password` | — | Send password reset link |
+| `POST` | `/api/v1/auth/reset-password` | — | Reset password with token |
 | `POST` | `/api/v1/uploads` | ✓ | Upload medical scan |
 | `GET`  | `/api/v1/uploads/{id}` | ✓ | Get upload details |
 | `POST` | `/api/v1/predict/{file_id}` | ✓ | Start AI prediction |

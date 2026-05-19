@@ -54,3 +54,8 @@ class NotificationType(StrEnum):
     SYSTEM = "system"
     PREDICTION_COMPLETED = "prediction_completed"
     PREDICTION_FAILED = "prediction_failed"
+
+
+class EmailTokenType(StrEnum):
+    EMAIL_VERIFICATION = "email_verification"
+    PASSWORD_RESET = "password_reset"

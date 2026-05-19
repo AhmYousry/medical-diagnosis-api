@@ -7,11 +7,16 @@ from app.modules.auth.dependencies import get_current_user, require_roles
 from app.db.enums import UserRole
 from app.modules.auth.schemas import (
     AuthResponse,
+    ForgotPasswordRequest,
     LoginRequest,
+    MessageResponse,
     RefreshTokenRequest,
     RegisterRequest,
+    ResetPasswordRequest,
+    ResendVerificationRequest,
     TokenResponse,
     UserResponse,
+    VerifyEmailRequest,
 )
 from app.modules.auth.services import AuthService
 from app.modules.doctors.dependencies import get_approved_doctor_profile
@@ -75,3 +80,43 @@ async def approved_doctor_only(
     doctor_profile: DoctorProfile = Depends(get_approved_doctor_profile),
 ) -> User:
     return doctor_profile.user
+
+
+# ── Email verification ────────────────────────────────────────────────────────
+
+@router.post("/verify-email", response_model=MessageResponse)
+async def verify_email(
+    payload: VerifyEmailRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> MessageResponse:
+    await AuthService(session).verify_email(payload)
+    return MessageResponse(message="Email verified successfully")
+
+
+@router.post("/resend-verification", response_model=MessageResponse)
+async def resend_verification(
+    payload: ResendVerificationRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> MessageResponse:
+    await AuthService(session).resend_verification(payload)
+    return MessageResponse(message="If that email exists and is unverified, a new link has been sent")
+
+
+# ── Password reset ────────────────────────────────────────────────────────────
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> MessageResponse:
+    await AuthService(session).forgot_password(payload)
+    return MessageResponse(message="If that email is registered, a reset link has been sent")
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(
+    payload: ResetPasswordRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> MessageResponse:
+    await AuthService(session).reset_password(payload)
+    return MessageResponse(message="Password reset successfully. Please log in with your new password.")

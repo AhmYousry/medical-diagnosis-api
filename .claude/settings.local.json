@@ -6,7 +6,8 @@
       "Bash(Select-Object FullName)",
       "Bash(ls -la \"C:\\\\Users\\\\ACER\\\\Desktop\\\\medical-diagnosis\\\\\")",
       "PowerShell(head -80)",
-      "Bash(Test-Path \"C:\\\\Users\\\\ACER\\\\Desktop\\\\medical-diagnosis\\\\medical-diagnosis-api\\\\.env.example\")"
+      "Bash(Test-Path \"C:\\\\Users\\\\ACER\\\\Desktop\\\\medical-diagnosis\\\\medical-diagnosis-api\\\\.env.example\")",
+      "Bash(git add *)"
     ]
   }
 }

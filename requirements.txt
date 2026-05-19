@@ -15,3 +15,12 @@ uvicorn[standard]>=0.30,<1.0
 gunicorn>=23.0,<24.0
 
 celery>=5.4,<6.0
+
+# Email
+aiosmtplib>=3.0,<4.0
+
+# S3 / Cloudflare R2
+aioboto3>=13.0,<14.0
+
+# Error tracking
+sentry-sdk[fastapi]>=2.0,<3.0

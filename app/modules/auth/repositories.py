@@ -4,7 +4,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.auth.models import RefreshToken
+from app.db.enums import EmailTokenType
+from app.modules.auth.models import EmailToken, RefreshToken
 from app.modules.users.models import User
 
 
@@ -65,3 +66,36 @@ class RefreshTokenRepository:
 
     def add(self, refresh_token: RefreshToken) -> None:
         self._session.add(refresh_token)
+
+
+class EmailTokenRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def add(self, token: EmailToken) -> None:
+        self._session.add(token)
+
+    async def get_active(self, token_hash: str, token_type: EmailTokenType) -> EmailToken | None:
+        result = await self._session.execute(
+            select(EmailToken).where(
+                EmailToken.token_hash == token_hash,
+                EmailToken.token_type == token_type,
+                EmailToken.used_at.is_(None),
+                EmailToken.expires_at > datetime.now(UTC),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def invalidate_existing(self, user_id: UUID, token_type: EmailTokenType) -> None:
+        """Mark all active tokens of given type for a user as used (invalidate them)."""
+        from sqlalchemy import update
+
+        await self._session.execute(
+            update(EmailToken)
+            .where(
+                EmailToken.user_id == user_id,
+                EmailToken.token_type == token_type,
+                EmailToken.used_at.is_(None),
+            )
+            .values(used_at=datetime.now(UTC))
+        )
