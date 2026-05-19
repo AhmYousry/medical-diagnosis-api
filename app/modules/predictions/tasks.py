@@ -5,12 +5,14 @@ import logging
 import uuid
 from decimal import Decimal
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import app.db.models  # noqa: F401 (ensure all models are loaded before mapper config)
 
 from app.core.celery_app import celery_app
 from app.core.config import settings
+from app.core.ws_manager import publish_prediction_update
 from app.db.enums import PredictionLogEvent
 from app.infrastructure.ai_client import AIServiceClient, AIServiceError
 from app.infrastructure.storage import get_absolute_path
@@ -48,6 +50,14 @@ async def _execute_prediction(db: AsyncSession, prediction_id: uuid.UUID) -> Non
     await repo.mark_processing(prediction_id)
     await repo.add_log(prediction_id, PredictionLogEvent.STATUS_CHANGED, "Worker processing")
     await db.flush()
+
+    # notify browser — processing started
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    await publish_prediction_update(redis, str(prediction_id), {
+        "prediction_id": str(prediction_id),
+        "status": "processing",
+    })
+    await redis.aclose()
 
     files_repo = UploadedFileRepository(db)
     uploaded_file = await files_repo.get_by_id(prediction.uploaded_file_id)
@@ -88,6 +98,17 @@ async def _execute_prediction(db: AsyncSession, prediction_id: uuid.UUID) -> Non
 
     await db.commit()
 
+    # notify browser — completed
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    await publish_prediction_update(redis, str(prediction_id), {
+        "prediction_id": str(prediction_id),
+        "status": "completed",
+        "predicted_label": predicted_label,
+        "confidence_score": float(confidence),
+        "result": ai_result,
+    })
+    await redis.aclose()
+
 
 async def _fail_prediction(db: AsyncSession, prediction_id: uuid.UUID, error: str) -> None:
     repo = PredictionRepository(db)
@@ -97,6 +118,15 @@ async def _fail_prediction(db: AsyncSession, prediction_id: uuid.UUID, error: st
     await repo.mark_failed(prediction_id, error)
     await repo.add_log(prediction_id, PredictionLogEvent.FAILED, error)
     await db.commit()
+
+    # notify browser — failed
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    await publish_prediction_update(redis, str(prediction_id), {
+        "prediction_id": str(prediction_id),
+        "status": "failed",
+        "error_message": error,
+    })
+    await redis.aclose()
 
 
 @celery_app.task(

@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -26,6 +27,17 @@ async_session_factory = async_sessionmaker(
 
 
 async def get_db_session() -> AsyncIterator[AsyncSession]:
+    async with async_session_factory() as session:
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+
+
+@asynccontextmanager
+async def get_db_session_ctx() -> AsyncIterator[AsyncSession]:
+    """Context-manager variant for use outside FastAPI dependency injection (e.g. WebSocket handlers)."""
     async with async_session_factory() as session:
         try:
             yield session
