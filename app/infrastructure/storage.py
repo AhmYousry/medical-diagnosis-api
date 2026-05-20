@@ -47,6 +47,13 @@ async def delete_file(storage_key: str) -> None:
         await _local_delete(storage_key)
 
 
+async def read_file(storage_key: str) -> bytes:
+    """Read file content from storage (local or S3)."""
+    if settings.storage_backend == "s3":
+        return await _s3_read(storage_key)
+    return await _local_read(storage_key)
+
+
 def get_file_url(storage_key: str) -> str:
     """Return a public-facing URL for the file (S3 only).
     For local storage returns an empty string — serve files via the API."""
@@ -68,6 +75,14 @@ async def _local_save(content: bytes, storage_key: str) -> str:
     loop = __import__("asyncio").get_event_loop()
     await loop.run_in_executor(None, path.write_bytes, content)
     return storage_key
+
+
+async def _local_read(storage_key: str) -> bytes:
+    path = _local_abs(storage_key)
+    if not path.exists():
+        raise FileNotFoundError(f"File not found on disk: {path}")
+    loop = __import__("asyncio").get_event_loop()
+    return await loop.run_in_executor(None, path.read_bytes)
 
 
 async def _local_delete(storage_key: str) -> None:
@@ -112,6 +127,15 @@ async def _s3_save(content: bytes, storage_key: str) -> str:
             Body=content,
         )
     return storage_key
+
+
+async def _s3_read(storage_key: str) -> bytes:
+    import aioboto3  # type: ignore[import]
+
+    session = aioboto3.Session()
+    async with session.client("s3", **_s3_client_kwargs()) as s3:
+        response = await s3.get_object(Bucket=settings.s3_bucket_name, Key=storage_key)
+        return await response["Body"].read()
 
 
 async def _s3_delete(storage_key: str) -> None:

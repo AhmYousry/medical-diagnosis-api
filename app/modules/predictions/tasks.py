@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.core.ws_manager import publish_prediction_update
 from app.db.enums import PredictionLogEvent
 from app.infrastructure.ai_client import AIServiceClient, AIServiceError
-from app.infrastructure.storage import get_absolute_path
+from app.infrastructure.storage import read_file
 from app.modules.predictions.repository import PredictionRepository
 from app.modules.uploaded_files.repository import UploadedFileRepository
 
@@ -26,10 +26,6 @@ def _create_session_factory():
     engine = create_async_engine(settings.database_url, pool_pre_ping=True)
     return async_sessionmaker(bind=engine, expire_on_commit=False)
 
-
-async def _read_file(path) -> bytes:
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, path.read_bytes)
 
 
 def _parse_confidence(value: object) -> Decimal:
@@ -64,11 +60,7 @@ async def _execute_prediction(db: AsyncSession, prediction_id: uuid.UUID) -> Non
     if uploaded_file is None:
         raise ValueError(f"File {prediction.uploaded_file_id} not found")
 
-    file_path = get_absolute_path(uploaded_file.storage_key)
-    if not file_path.exists():
-        raise FileNotFoundError(f"File not found on disk: {file_path}")
-
-    image_bytes = await _read_file(file_path)
+    image_bytes = await read_file(uploaded_file.storage_key)
 
     await repo.add_log(
         prediction_id,
