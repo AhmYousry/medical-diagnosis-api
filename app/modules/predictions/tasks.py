@@ -13,9 +13,10 @@ import app.db.models  # noqa: F401 (ensure all models are loaded before mapper c
 from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.core.ws_manager import publish_prediction_update
-from app.db.enums import PredictionLogEvent
+from app.db.enums import NotificationType, PredictionLogEvent
 from app.infrastructure.ai_client import AIServiceClient, AIServiceError
 from app.infrastructure.storage import read_file
+from app.modules.notifications.repository import NotificationRepository
 from app.modules.predictions.repository import PredictionRepository
 from app.modules.uploaded_files.repository import UploadedFileRepository
 
@@ -88,6 +89,19 @@ async def _execute_prediction(db: AsyncSession, prediction_id: uuid.UUID) -> Non
         f"Prediction: {predicted_label} ({confidence}%)",
     )
 
+    # in-app notification for the requester
+    await NotificationRepository(db).create(
+        recipient_id=prediction.requested_by_id,
+        notification_type=NotificationType.PREDICTION_COMPLETED,
+        title="Scan analysis complete",
+        message=f"Predicted: {predicted_label} ({float(confidence):.1f}% confidence)",
+        payload={
+            "prediction_id": str(prediction_id),
+            "predicted_label": predicted_label,
+            "confidence": float(confidence),
+        },
+    )
+
     await db.commit()
 
     # notify browser — completed
@@ -109,6 +123,15 @@ async def _fail_prediction(db: AsyncSession, prediction_id: uuid.UUID, error: st
         return
     await repo.mark_failed(prediction_id, error)
     await repo.add_log(prediction_id, PredictionLogEvent.FAILED, error)
+
+    await NotificationRepository(db).create(
+        recipient_id=prediction.requested_by_id,
+        notification_type=NotificationType.PREDICTION_FAILED,
+        title="Scan analysis failed",
+        message=error[:280],
+        payload={"prediction_id": str(prediction_id), "error": error},
+    )
+
     await db.commit()
 
     # notify browser — failed
