@@ -81,7 +81,8 @@ async def _execute_prediction(db: AsyncSession, prediction_id: uuid.UUID) -> Non
         predicted_label=predicted_label,
         confidence_score=confidence,
         result=ai_result,
-        model_name="CheXNet",
+        model_name=ai_result.get("model", "unknown"),
+        model_version=ai_result.get("model_version"),
     )
     await repo.add_log(
         prediction_id,

@@ -51,6 +51,7 @@ class PredictionRepository:
         confidence_score: Decimal,
         result: dict | None = None,
         model_name: str | None = None,
+        model_version: str | None = None,
     ) -> None:
         await self._session.execute(
             update(Prediction)
@@ -61,6 +62,7 @@ class PredictionRepository:
                 confidence_score=confidence_score,
                 result=result,
                 model_name=model_name,
+                model_version=model_version,
                 completed_at=datetime.now(UTC),
             )
         )
